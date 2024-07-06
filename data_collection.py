@@ -1,6 +1,7 @@
 import cv2
 import mediapipe as mp
 import numpy as np
+import os.path
 
 BOX_MARGIN = 50
 COLLECTING = False
@@ -140,10 +141,17 @@ def write_to_csv(training_data):
         if len(file_name) > 0:
             break
 
+    if os.path.isfile(f'{file_name}.csv'):
+        perms = 'a'
+    else:
+        perms = 'w'
+
     print("Writing data to csv file.")
 
-    file = open(f'{file_name}.csv', 'w')
-    file.write('coords\n')
+    file = open(f'{file_name}.csv', perms)
+    if perms == 'w':
+        file.write('coords\n')
+
     for row in training_data:
         file.write(f'"{row}"\n')
     file.close()

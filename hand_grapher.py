@@ -18,17 +18,6 @@ for x in df['coords']:
     plt.scatter(xs,-ys, c=colors, cmap='viridis')
 plt.show()
 
-
-
-#x = np.array(list(df.iloc[0,0]))
-#y = np.array(list(df.iloc[0,1]))
-#x = np.array([1,2,3,4])
-#y = np.array([1,2,3,4])
-#x = np.zeros(len())
-#plt.scatter(x,-y)
-
-
-
 # CALC DISTANCES BETWEEN EACH NODE
 plt.show()
 
