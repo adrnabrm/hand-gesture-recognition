@@ -5,7 +5,7 @@ import tensorflow as tf
 from tensorflow import keras
 
 def gesture_detector(model):
-    gestures = ["peace","heart","shaka","none"]
+    gestures = ['heart', 'none', 'peace', 'shaka']
     mp_hands = mp.solutions.hands
     hands = mp_hands.Hands(static_image_mode=False,
                            max_num_hands=1,
@@ -53,7 +53,7 @@ def gesture_detector(model):
             max_prediction = np.argmax(predictions_p)
             target_probability = predictions_p[max_prediction]
 
-            if max_prediction != 3 and target_probability > .85:
+            if max_prediction != 1 and target_probability > .85:
                 text = f"{gestures[max_prediction]}, {(target_probability * 100):.2f}%"
             else:
                 text = ""
