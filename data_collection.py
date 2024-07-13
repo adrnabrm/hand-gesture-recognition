@@ -130,25 +130,32 @@ def write_to_csv(training_data):
     """
     Writes the training data to the csv.
 
-    User is prompted to choose a name for the csv. Takes all the calculated normalized coordinates from video capture and writes to previously specified csv file.
+    User is prompted to choose a name for the csv. Takes all the calculated normalized coordinates from video capture and writes to previously specified csv file. These csv files are stored in a directory called data.
 
     Args:
         training_data: data collected from the video capture.
     """
+    directory = 'data'
     file_name = ''
+    perms = ''
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
     while len(file_name) == 0:
         file_name = str(input('Enter a name for the csv: '))
         if len(file_name) > 0:
             break
 
-    if os.path.isfile(f'{file_name}.csv'):
+    file_path = os.path.join(directory, file_name+'.csv')
+    print(file_path)
+    if os.path.exists(file_path):
         perms = 'a'
     else:
         perms = 'w'
 
     print("Writing data to csv file.")
 
-    file = open(f'{file_name}.csv', perms)
+    file = open(file_path, perms)
     if perms == 'w':
         file.write('coords\n')
 
