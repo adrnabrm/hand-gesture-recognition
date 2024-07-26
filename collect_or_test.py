@@ -2,6 +2,9 @@ import os.path
 import cv2
 import mediapipe as mp
 import numpy as np
+from tensorflow import keras
+from tensorflow.nn import softmax
+
 
 BOX_MARGIN = 50
 COLLECTING = False
@@ -32,7 +35,7 @@ def data_collection(event,x,y,flags,param):
             MESSAGE = "Click to collect!"
 
 
-def video_capture():
+def video_capture(model, gestures):
     """
     Turns on system's default camera and takes data of hand.
 
@@ -43,6 +46,7 @@ def video_capture():
     """
     global MESSAGE
     global NUM_TRAINING_EX
+
     data = []
     # initializing MediaPipe's hand detection module
     mp_hands = mp.solutions.hands
@@ -54,7 +58,12 @@ def video_capture():
     # default camera is used to capture live feed
     cap = cv2.VideoCapture(0)
     cv2.namedWindow('Hand Landmarks')
-    cv2.setMouseCallback('Hand Landmarks', data_collection)
+
+    if model:
+        MESSAGE = "Test the gesture model!"
+    else:
+        cv2.setMouseCallback('Hand Landmarks', data_collection)
+        cv2.putText(frame, f"Count: {NUM_TRAINING_EX}", (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
     print("Starting video capture.")
     while cap.isOpened():
@@ -71,7 +80,6 @@ def video_capture():
         frame = cv2.flip(frame, 1)
         # adding message onto display to tell user if they are collecting data or not
         cv2.putText(frame, MESSAGE, (50,50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
-        cv2.putText(frame, f"Count: {NUM_TRAINING_EX}", (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         # convert the BGR image to RGB for hand detection
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         # process the frame and find hands
@@ -100,17 +108,32 @@ def video_capture():
                 rel_coords = [ (x - rect_start[0], y - rect_start[1]) for x,y in hand_coords ]
 
                 # just a quick check to see that no matter where the hand moves, the coords stay relative :o
-                for coord in rel_coords:
-                    cv2.circle(frame, coord, 10, (0, 0, 255), -1)
+                # for coord in rel_coords:
+                #     cv2.circle(frame, coord, 10, (0, 0, 255), -1)
+
+                # calculating the x and y relative coord maxes
+                rel_x_max = max(x for x, y in rel_coords)
+                rel_y_max = max(y for x, y in rel_coords)
+                # normalizing the relative coordinates for training set
+                normalized_rel_coords = [(x / rel_x_max, y / rel_y_max) for x, y in rel_coords]
+
+
                 if COLLECTING:
-                    # calculating the x and y relative coord maxes
-                    rel_x_max = max(x for x,y in rel_coords)
-                    rel_y_max = max(y for x,y in rel_coords)
-                    # normalizing the relative coordinates for training set
-                    normalized_rel_coords = [ (x / rel_x_max, y / rel_y_max) for x,y in rel_coords ]
                     # adding normalized relative coords to the data
                     data.append(normalized_rel_coords)
                     NUM_TRAINING_EX += 1
+                elif model:
+                    normalized_rel_coords = np.expand_dims(normalized_rel_coords, axis=0)
+                    predictions = model.predict(normalized_rel_coords, verbose=0)[0]
+                    predictions_p = softmax(predictions).numpy()
+                    max_prediction = np.argmax(predictions_p)
+                    target_probability = predictions_p[max_prediction]
+
+                    if gestures[max_prediction] != 'none' and target_probability > .85:
+                        text = f"{gestures[max_prediction]}, {(target_probability * 100):.2f}%"
+                    else:
+                        text = ""
+                    cv2.putText(frame, text, (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
 
         cv2.imshow('Hand Landmarks', frame)
 
@@ -165,6 +188,15 @@ def write_to_csv(training_data):
 
     print("Write successful!")
 
+def retrieve_gestures(directory):
+    files = os.listdir(directory)
+    categories = [file.split('.')[0] for file in files]
+    for i in range(len(categories)):
+        categories[i] = " ".join(categories[i].split('_'))
+
+    return sorted(categories)
+
+
 def main():
     """
     Main function.
@@ -172,12 +204,19 @@ def main():
     Serves as starting point of the program.
     """
     print("Starting program...")
-
-    # video capturing begins
-    training_data = video_capture()
+    testing_model = int(input("Would you like to collect data or test the model? (0-collect |1-test): "))
+    if testing_model != 0 and testing_model != 1:
+        raise ValueError("Please enter 0 or 1.")
+    model = None
+    gestures = None
+    if testing_model:
+        model = keras.models.load_model('gesture_model.keras')
+        gestures = retrieve_gestures('./data')
+    # video capture begins
+    training_data = video_capture(model, gestures)
 
     # writing to csv
-    if NUM_TRAINING_EX:
+    if training_data:
         write_to_csv(training_data)
 
 main()
